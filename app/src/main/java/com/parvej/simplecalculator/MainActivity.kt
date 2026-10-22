@@ -3,7 +3,10 @@ package com.parvej.simplecalculator
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -146,6 +149,9 @@ fun CalculatorScreen() {
         listOf("0", ".", "⌫", "="),
     )
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val websiteUrl = "https://bparvej.api.bd"
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -209,6 +215,20 @@ fun CalculatorScreen() {
                     }
                 }
             }
+
+            Text(
+                text = "Developed by @bparvej",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+                    .clickable {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(websiteUrl))
+                        context.startActivity(intent)
+                    },
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
