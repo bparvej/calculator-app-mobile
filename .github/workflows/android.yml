@@ -54,7 +54,7 @@ jobs:
             echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
             echo "Using repository signing secrets for release build."
           else
-            echo "Repository signing secrets not found. Creating a temporary CI keystore for validation only."
+            echo "Repository signing secrets not found. Creating a temporary CI keystore for validation only. This is not a Google Play upload key."
             keytool -genkeypair \
               -v \
               -keystore "$KEYSTORE_PATH" \
