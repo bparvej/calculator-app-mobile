@@ -217,7 +217,7 @@ fun CalculatorScreen() {
             }
 
             Text(
-                text = "Developed by @bparvej",
+                text = "Developed by bparvej",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 modifier = Modifier
