@@ -46,40 +46,41 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           KEYSTORE_PATH="$GITHUB_WORKSPACE/app/upload-keystore.jks"
-          KEYSTORE_PASSWORD="${ANDROID_KEYSTORE_PASSWORD:-android}"
-          KEY_ALIAS="${ANDROID_KEY_ALIAS:-ci-upload-key}"
-          KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-android}"
 
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
-            echo "Using repository signing secrets for release build."
-          else
-            echo "Repository signing secrets not found. Creating a temporary CI keystore for validation only. This is not a Google Play upload key."
-            keytool -genkeypair \
-              -v \
-              -keystore "$KEYSTORE_PATH" \
-              -storetype JKS \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -alias "$KEY_ALIAS" \
-              -storepass "$KEYSTORE_PASSWORD" \
-              -keypass "$KEY_PASSWORD" \
-              -dname "CN=CI Build, OU=CI, O=Simple Calculator, L=Local, ST=Local, C=US"
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
+            echo "ERROR: Android release signing secrets are missing."
+            echo "Add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD to GitHub repository secrets."
+            echo "The Google Play upload keystore must match fingerprint SHA1: E0:20:46:55:C5:2A:8C:92:1F:B1:CB:10:A3:E9:20:35:4B:0F:9E:11"
+            exit 1
           fi
 
-          echo "ANDROID_KEYSTORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
-          echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
-          echo "ANDROID_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          echo "Using repository signing secrets for release build."
 
-      - name: Print signing certificate fingerprint
+          echo "ANDROID_KEYSTORE_FILE=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Validate Play upload certificate fingerprint
         env:
           ANDROID_KEYSTORE_FILE: ${{ env.ANDROID_KEYSTORE_FILE }}
           ANDROID_KEYSTORE_PASSWORD: ${{ env.ANDROID_KEYSTORE_PASSWORD }}
         run: |
+          EXPECTED_SHA1="E0:20:46:55:C5:2A:8C:92:1F:B1:CB:10:A3:E9:20:35:4B:0F:9E:11"
+          ACTUAL_SHA1=$(keytool -list -v -keystore "$ANDROID_KEYSTORE_FILE" -storepass "$ANDROID_KEYSTORE_PASSWORD" | sed -n 's/.*SHA1: *//p' | head -n 1 | tr -d '[:space:]')
+
           echo "Using keystore: $ANDROID_KEYSTORE_FILE"
-          keytool -list -v -keystore "$ANDROID_KEYSTORE_FILE" -storepass "$ANDROID_KEYSTORE_PASSWORD" | grep "SHA1:" || true
+          echo "Actual SHA1: $ACTUAL_SHA1"
+          echo "Expected SHA1: $EXPECTED_SHA1"
+
+          if [ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]; then
+            echo "ERROR: The uploaded AAB is signed with the wrong key."
+            echo "Upload the keystore matching the Google Play upload certificate fingerprint above."
+            exit 1
+          fi
+
+          echo "Certificate fingerprint matches the Google Play upload key."
 
       - name: Grant execute permission for Gradle Wrapper
         run: chmod +x ./gradlew
